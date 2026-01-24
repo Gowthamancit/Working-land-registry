@@ -1,0 +1,32 @@
+{
+  "name": "land-registry-contract",
+  "version": "1.0.0",
+  "description": "Decentralized Land Registry Smart Contract with Government Signature Verification",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network mainnet",
+    "verify": "hardhat verify"
+  },
+  "keywords": [
+    "blockchain",
+    "land-registry",
+    "NFT",
+    "ethereum",
+    "solidity"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1",
+    "dotenv": "^16.3.1",
+    "firebase": "^12.8.0"
+  }
+}

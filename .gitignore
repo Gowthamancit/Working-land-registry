@@ -1,0 +1,39 @@
+# Hardhat runtime environment
+node_modules/
+cache/
+artifacts/
+typechain-types/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Deployment artifacts
+deployments/
+*.deployment.json
+
+# Coverage reports
+coverage/
+coverage.json
+.coverage_artifacts
+.coverage_cache
+.coverage_contracts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.ethereum/
