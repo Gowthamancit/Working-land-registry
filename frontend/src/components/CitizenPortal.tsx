@@ -10,7 +10,6 @@ import {
     ExternalLink,
     Loader2,
     PlusCircle,
-    ArrowUpRight,
     RefreshCw,
     Coins
 } from 'lucide-react';
@@ -160,6 +159,11 @@ const CitizenPortal: React.FC = () => {
             const contract = new Contract(LAND_REGISTRY_ADDRESS, LAND_REGISTRY_ABI, signer);
 
             // Final On-chain Minting with Govt Signature
+            console.log("Minting Verification:", {
+                msg_sender: signer.address,
+                app_owner: app.ownerAddress,
+                match: signer.address.toLowerCase() === app.ownerAddress.toLowerCase()
+            });
             const tx = await contract.mint(app.h3Hash, app.arweaveHash, app.govSignature);
             // Capture TokenID from Event
             const receipt = await tx.wait();
@@ -303,35 +307,55 @@ const CitizenPortal: React.FC = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {approvedApps.map((app) => (
-                            <div key={app.id} className="card border-t-4 border-green-500 hover:scale-[1.02] transition-transform duration-300">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="p-3 bg-green-50 rounded-xl">
-                                        <MapPin className="text-green-600 w-6 h-6" />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase text-green-600 tracking-widest bg-green-100 px-2.5 py-1 rounded">Ready</span>
-                                </div>
+                        {approvedApps.map((app) => {
+                            const isCorrectWallet = userAddress?.toLowerCase() === app.ownerAddress.toLowerCase();
 
-                                <div className="space-y-4 mb-8">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Geohash (H3)</label>
-                                        <div className="flex items-center justify-between font-mono text-sm bg-gray-50 p-2 rounded">
-                                            <span>{app.h3Hash}</span>
-                                            <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer" />
+                            return (
+                                <div key={app.id} className={`card border-t-4 transition-all duration-300 ${isCorrectWallet ? 'border-green-500 hover:scale-[1.02]' : 'border-red-400 opacity-80'}`}>
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className={`p-3 rounded-xl ${isCorrectWallet ? 'bg-green-50' : 'bg-red-50'}`}>
+                                            <MapPin className={`${isCorrectWallet ? 'text-green-600' : 'text-red-600'} w-6 h-6`} />
                                         </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded ${isCorrectWallet ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'}`}>
+                                            {isCorrectWallet ? 'Ready' : 'Wrong Wallet'}
+                                        </span>
                                     </div>
-                                </div>
 
-                                <button
-                                    onClick={() => mintNFT(app)}
-                                    disabled={isMinting === app.id}
-                                    className="w-full btn-primary bg-black hover:bg-gray-800 text-white flex items-center justify-center gap-3 py-4"
-                                >
-                                    {isMinting === app.id ? <Loader2 className="animate-spin" /> : <PlusCircle className="w-5 h-5" />}
-                                    {isMinting === app.id ? "Minting..." : "Mint Land NFT"}
-                                </button>
-                            </div>
-                        ))}
+                                    <div className="space-y-4 mb-6">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Geohash (H3)</label>
+                                            <div className="flex items-center justify-between font-mono text-sm bg-gray-50 p-2 rounded">
+                                                <span>{app.h3Hash}</span>
+                                                <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer" />
+                                            </div>
+                                        </div>
+                                        {!isCorrectWallet && (
+                                            <div className="bg-red-50 p-3 rounded-xl flex items-start gap-2 border border-red-100">
+                                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                                <p className="text-[10px] font-bold text-red-700 leading-tight">
+                                                    This application belongs to:<br />
+                                                    <span className="font-mono text-gray-500">{app.ownerAddress.slice(0, 10)}...{app.ownerAddress.slice(-8)}</span>
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        onClick={() => mintNFT(app)}
+                                        disabled={isMinting === app.id || !isCorrectWallet}
+                                        className={`w-full btn-primary flex items-center justify-center gap-3 py-4 transition-all ${!isCorrectWallet
+                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                : 'bg-black hover:bg-gray-800 text-white shadow-lg shadow-gray-200'
+                                            }`}
+                                    >
+                                        {isMinting === app.id ? <Loader2 className="animate-spin text-white" /> : <PlusCircle className="w-5 h-5 flex-shrink-0" />}
+                                        <span className="font-black uppercase tracking-tight">
+                                            {isMinting === app.id ? "Minting..." : isCorrectWallet ? "Mint Land NFT" : "Switch Wallet to Mint"}
+                                        </span>
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </section>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, Upload, FileText, CheckCircle, PenTool, Send, Hash, Loader2 } from 'lucide-react';
-import { BrowserProvider } from 'ethers';
+import { BrowserProvider, getBytes } from 'ethers';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, COLLECTIONS } from '../firebase';
 import { generateH3Hash, generateInfoHash, copyToClipboard } from '../utils/crypto';
@@ -94,7 +94,7 @@ const SurveyorPortal: React.FC = () => {
             const provider = new BrowserProvider(window.ethereum!);
             const signer = await provider.getSigner();
 
-            const signature = await signer.signMessage(infoHash);
+            const signature = await signer.signMessage(getBytes(infoHash));
             setSurveyorSignature(signature);
         } catch (error: any) {
             console.error("Signing Error:", error);

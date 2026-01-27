@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, ShieldCheck, XCircle, CheckCircle2, PenTool, Loader2, AlertCircle, Copy, ExternalLink } from 'lucide-react';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from 'firebase/firestore';
-import { BrowserProvider, verifyMessage } from 'ethers';
+import { BrowserProvider, verifyMessage, getBytes } from 'ethers';
 import { db, COLLECTIONS } from '../firebase';
 import { generateInfoHash, copyToClipboard } from '../utils/crypto';
 
@@ -74,7 +74,7 @@ const GovernmentPortal: React.FC = () => {
             const infoHash = generateInfoHash(app.ownerAddress, app.h3Hash, app.arweaveHash);
 
             // 2. Perform ecrecover (verifyMessage returns the signer address)
-            const recoveredAddress = verifyMessage(infoHash, app.surveyorSignature);
+            const recoveredAddress = verifyMessage(getBytes(infoHash), app.surveyorSignature);
 
             // 3. Check if address is in whitelisted_surveyors list in Firestore
             const surveyorsRef = collection(db, COLLECTIONS.SURVEYORS);
@@ -117,7 +117,7 @@ const GovernmentPortal: React.FC = () => {
             const infoHash = generateInfoHash(app.ownerAddress, app.h3Hash, app.arweaveHash);
 
             // Trigger MetaMask signature for the Government official
-            const govSignature = await signer.signMessage(infoHash);
+            const govSignature = await signer.signMessage(getBytes(infoHash));
 
             // Update Firestore with govSign and Approved status
             const appRef = doc(db, COLLECTIONS.APPLICATIONS, app.id);
