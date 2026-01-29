@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { MapPin, Upload, FileText, CheckCircle, PenTool, Send, Hash, Loader2 } from 'lucide-react';
-import { BrowserProvider, getBytes } from 'ethers';
+import React, { useState, useRef } from 'react';
+import { MapPin, Upload, FileText, CheckCircle, PenTool, Send, Hash, Loader2, ExternalLink, Copy, RefreshCw } from 'lucide-react';
+import { BrowserProvider, getBytes, keccak256 } from 'ethers';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, COLLECTIONS } from '../firebase';
 import { generateH3Hash, generateInfoHash, copyToClipboard } from '../utils/crypto';
@@ -25,6 +25,8 @@ const SurveyorPortal: React.FC = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [isSigning, setIsSigning] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Only listen for changes IF already connected specifically to this portal
     React.useEffect(() => {
@@ -67,14 +69,48 @@ const SurveyorPortal: React.FC = () => {
         setH3Hash(hash);
     };
 
-    const onMockArweaveUpload = async () => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== 'application/pdf') {
+            alert("Please upload a PDF file.");
+            return;
+        }
+
         setIsUploading(true);
-        // Simulating Arweave Upload delay
-        setTimeout(() => {
-            const mockHash = `ar://${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-            setArweaveHash(mockHash);
+
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const buffer = e.target?.result as ArrayBuffer;
+                // Generate a deterministic hash based on file content
+                const contentHash = keccak256(new Uint8Array(buffer));
+
+                // Simulate a real Arweave Transaction ID (43 chars, base64url)
+                // We'll take the hex hash and convert it to a pseudo-Arweave ID
+                const mockTxId = contentHash.slice(2, 45) // Taking first 43 chars of hex for visual simulation
+                    .replace(/0/g, 'a').replace(/1/g, 'b'); // Just making it look less like pure hex
+
+                setTimeout(() => {
+                    setArweaveHash(mockTxId);
+                    setUploadedFile({
+                        name: file.name,
+                        size: (file.size / 1024).toFixed(1) + ' KB'
+                    });
+                    setIsUploading(false);
+                }, 1500);
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Failed to process document.");
             setIsUploading(false);
-        }, 1500);
+        }
+    };
+
+    const triggerFileUpload = () => {
+        fileInputRef.current?.click();
     };
 
     const onGenerateSign = async () => {
@@ -131,6 +167,8 @@ const SurveyorPortal: React.FC = () => {
             setH3Hash('');
             setArweaveHash('');
             setSurveyorSignature('');
+            setUploadedFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         } catch (error: any) {
             console.error("Submission Error:", error);
             alert("Failed to submit to database.");
@@ -219,16 +257,41 @@ const SurveyorPortal: React.FC = () => {
                                     onChange={(e) => setOwnerAddress(e.target.value)}
                                 />
                             </div>
-                            <div className="p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 flex flex-col items-center hover:bg-gray-100 transition-colors">
-                                <Upload className="w-10 h-10 text-gray-400 mb-3" />
-                                <p className="text-sm font-semibold text-gray-500 mb-4">Upload Paper Deeds (.pdf)</p>
+                            <div className={`p-6 border-2 border-dashed rounded-xl transition-all duration-300 flex flex-col items-center ${uploadedFile ? 'border-green-500 bg-green-50/50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}>
+                                {uploadedFile ? (
+                                    <CheckCircle className="w-10 h-10 text-green-500 mb-3 animate-bounce-slow" />
+                                ) : (
+                                    <Upload className="w-10 h-10 text-gray-400 mb-3" />
+                                )}
+
+                                <div className="text-center mb-4">
+                                    <p className={`text-sm font-bold ${uploadedFile ? 'text-green-700' : 'text-gray-500'}`}>
+                                        {uploadedFile ? uploadedFile.name : "Upload Paper Deeds (.pdf)"}
+                                    </p>
+                                    {uploadedFile && (
+                                        <p className="text-[10px] font-medium text-green-600 uppercase tracking-widest mt-1">
+                                            {uploadedFile.size} • Attached Successfully
+                                        </p>
+                                    )}
+                                </div>
+
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    accept=".pdf"
+                                    className="hidden"
+                                />
                                 <button
-                                    onClick={onMockArweaveUpload}
+                                    onClick={triggerFileUpload}
                                     disabled={isUploading}
-                                    className="btn-secondary w-full flex items-center justify-center gap-2"
+                                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold transition-all ${uploadedFile
+                                            ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-100'
+                                            : 'btn-secondary'
+                                        }`}
                                 >
-                                    {isUploading ? <Loader2 className="animate-spin" /> : <Upload className="w-4 h-4" />}
-                                    {isUploading ? "Uploading..." : "Upload to Arweave"}
+                                    {isUploading ? <Loader2 className="animate-spin" /> : uploadedFile ? <RefreshCw className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                                    {isUploading ? "Uploading..." : uploadedFile ? "Change Document" : "Select & Upload"}
                                 </button>
                             </div>
                         </div>
@@ -248,11 +311,36 @@ const SurveyorPortal: React.FC = () => {
                                     <span>{h3Hash || "---"}</span>
                                 </div>
                             </div>
-                            <div onClick={() => arweaveHash && copyToClipboard(arweaveHash)} className="cursor-pointer group">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block group-hover:text-primary-500 transition-colors">Arweave Hash</label>
-                                <div className="hash-display min-h-[44px] flex items-center justify-between">
-                                    <span className="truncate max-w-[250px]">{arweaveHash || "---"}</span>
+                            <div className="cursor-pointer group">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block group-hover:text-primary-500 transition-colors">Arweave Hash (Transaction ID)</label>
+                                <div className="hash-display min-h-[44px] flex items-center justify-between gap-2 overflow-hidden">
+                                    <span className="truncate font-mono text-xs">{arweaveHash || "---"}</span>
+                                    {arweaveHash && (
+                                        <div className="flex gap-2 shrink-0">
+                                            <button
+                                                onClick={() => copyToClipboard(arweaveHash)}
+                                                className="p-1.5 hover:bg-white rounded-md transition-colors"
+                                                title="Copy ID"
+                                            >
+                                                <Copy className="w-3 h-3 text-gray-400 hover:text-primary-500" />
+                                            </button>
+                                            <a
+                                                href={`https://arweave.net/${arweaveHash}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="p-1.5 hover:bg-white rounded-md transition-colors"
+                                                title="View on Gateway"
+                                            >
+                                                <ExternalLink className="w-3 h-3 text-gray-400 hover:text-primary-500" />
+                                            </a>
+                                        </div>
+                                    )}
                                 </div>
+                                {arweaveHash && (
+                                    <p className="text-[9px] text-gray-400 mt-1 italic">
+                                        Note: This is a simulated hash. Real uploads require an Arweave Gateway.
+                                    </p>
+                                )}
                             </div>
                         </div>
 

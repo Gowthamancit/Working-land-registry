@@ -20,6 +20,12 @@ export default {
                     900: '#1e3a8a',
                 },
             },
+            fontFamily: {
+                sans: ['Open Sans', 'Montserrat', 'sans-serif'],
+                display: ['Space Grotesk', 'sans-serif'],
+                accent: ['Poppins', 'sans-serif'],
+                brand: ['Quicksand', 'sans-serif'],
+            },
         },
     },
     plugins: [],

@@ -69,8 +69,9 @@ export const generateInfoHash = (
     h3Hash: string,
     arweaveHash: string
 ): string => {
+    // We now pack h3Hash as bytes32 to match the contract and use it as a tokenId
     return solidityPackedKeccak256(
-        ["address", "string", "string"],
+        ["address", "bytes32", "string"],
         [owner, h3Hash, arweaveHash]
     );
 };

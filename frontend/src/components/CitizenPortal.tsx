@@ -11,7 +11,8 @@ import {
     Loader2,
     PlusCircle,
     RefreshCw,
-    Coins
+    Coins,
+    AlertCircle
 } from 'lucide-react';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { BrowserProvider, Contract, parseEther, formatEther } from 'ethers';
@@ -29,7 +30,7 @@ interface Application {
 }
 
 interface LandNFT {
-    tokenId: number;
+    tokenId: string; // Using string to handle massive H3-derived BigInts
     h3Hash: string;
     tokenURI: string;
     owner: string;
@@ -52,14 +53,15 @@ const CitizenPortal: React.FC = () => {
             return () => window.ethereum?.removeListener('accountsChanged', handleAccounts);
         }
     }, [userAddress]);
+
     const [approvedApps, setApprovedApps] = useState<Application[]>([]);
     const [marketLands, setMarketLands] = useState<LandNFT[]>([]);
     const [isMinting, setIsMinting] = useState<string | null>(null);
-    const [isBuying, setIsBuying] = useState<number | null>(null);
-    const [listingPrice, setListingPrice] = useState<Record<number, string>>({});
-    const [listingMetadata, setListingMetadata] = useState<Record<number, { name: string, location: string }>>({});
+    const [isBuying, setIsBuying] = useState<string | null>(null);
+    const [listingPrice, setListingPrice] = useState<Record<string, string>>({});
+    const [listingMetadata, setListingMetadata] = useState<Record<string, { name: string, location: string }>>({});
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [activeListingId, setActiveListingId] = useState<number | null>(null);
+    const [activeListingId, setActiveListingId] = useState<string | null>(null);
 
     // 1. Connect Wallet
     const connectWallet = async () => {
@@ -83,7 +85,7 @@ const CitizenPortal: React.FC = () => {
         const q = query(
             collection(db, COLLECTIONS.APPLICATIONS),
             where('status', '==', 'approved'),
-            where('ownerAddress', '==', userAddress.trim().toLowerCase()) // Ensure case consistency
+            where('ownerAddress', '==', userAddress.trim().toLowerCase())
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -105,19 +107,20 @@ const CitizenPortal: React.FC = () => {
             const provider = new BrowserProvider(window.ethereum);
             const contract = new Contract(LAND_REGISTRY_ADDRESS, LAND_REGISTRY_ABI, provider);
 
-            const total = await contract.totalSupply();
+            const allTokenIds = await contract.getAllMintedTokens();
             const lands: LandNFT[] = [];
 
-            for (let i = 1; i <= Number(total); i++) {
-                const owner = await contract.ownerOf(i);
-                const h3 = await contract.getH3Hash(i);
-                const uri = await contract.tokenURI(i);
-                const listing = await contract.getListing(i);
+            for (const rawId of allTokenIds) {
+                const tokenId = rawId.toString();
+                const owner = await contract.ownerOf(rawId);
+                const h3Bytes = await contract.getH3Hash(rawId);
+                const uri = await contract.tokenURI(rawId);
+                const listing = await contract.getListing(rawId);
 
                 // Fetch metadata from Firestore if available
-                let mpName = `Property #${i}`;
+                let mpName = `Property #${tokenId.slice(0, 8)}...`;
                 let mpLoc = "Verified Records";
-                const q = query(collection(db, COLLECTIONS.APPLICATIONS), where("tokenId", "==", i));
+                const q = query(collection(db, COLLECTIONS.APPLICATIONS), where("tokenId", "==", tokenId));
                 const mpSnap = await getDocs(q);
                 if (!mpSnap.empty) {
                     const data = mpSnap.docs[0].data();
@@ -126,8 +129,8 @@ const CitizenPortal: React.FC = () => {
                 }
 
                 lands.push({
-                    tokenId: i,
-                    h3Hash: h3,
+                    tokenId,
+                    h3Hash: h3Bytes,
                     tokenURI: uri,
                     owner: owner.toLowerCase(),
                     isListed: listing.isActive,
@@ -158,24 +161,16 @@ const CitizenPortal: React.FC = () => {
             const signer = await provider.getSigner();
             const contract = new Contract(LAND_REGISTRY_ADDRESS, LAND_REGISTRY_ABI, signer);
 
-            // Final On-chain Minting with Govt Signature
-            console.log("Minting Verification:", {
-                msg_sender: signer.address,
-                app_owner: app.ownerAddress,
-                match: signer.address.toLowerCase() === app.ownerAddress.toLowerCase()
-            });
             const tx = await contract.mint(app.h3Hash, app.arweaveHash, app.govSignature);
-            // Capture TokenID from Event
             const receipt = await tx.wait();
-            // Note: In Ethers v6, we look for logs. 
-            // Our contract emits LandMinted(uint256 indexed tokenId, address indexed owner, ...)
-            const tokenId = receipt.logs[0]?.args?.[0] || receipt.logs[1]?.args?.[0];
 
-            // Update Firestore status and store the associated TokenID
+            // Derive tokenId from receipt or app.h3Hash
+            const tokenId = receipt.logs[0]?.args?.[0] || BigInt(app.h3Hash);
+
             const appRef = doc(db, COLLECTIONS.APPLICATIONS, app.id);
             await updateDoc(appRef, {
                 status: 'minted',
-                tokenId: Number(tokenId) // Link the blockchain ID to the database record
+                tokenId: tokenId.toString()
             });
 
             alert("🎉 Land NFT minted successfully!");
@@ -189,7 +184,7 @@ const CitizenPortal: React.FC = () => {
     };
 
     // 5. List for Sale
-    const listLand = async (tokenId: number) => {
+    const listLand = async (tokenId: string) => {
         const price = listingPrice[tokenId];
         const metadata = listingMetadata[tokenId] || { name: '', location: '' };
 
@@ -204,18 +199,16 @@ const CitizenPortal: React.FC = () => {
             const signer = await provider.getSigner();
             const contract = new Contract(LAND_REGISTRY_ADDRESS, LAND_REGISTRY_ABI, signer);
 
-            // 1. Blockchain Transaction
-            const tx = await contract.listLand(tokenId, parseEther(price));
+            const tx = await contract.listLand(BigInt(tokenId), parseEther(price));
             await tx.wait();
 
-            // 2. Find the application record in Firestore that matches this TokenID
-            const q = query(collection(db, COLLECTIONS.APPLICATIONS), where("tokenId", "==", Number(tokenId)));
+            const q = query(collection(db, COLLECTIONS.APPLICATIONS), where("tokenId", "==", tokenId));
             const querySnapshot = await getDocs(q);
 
             if (!querySnapshot.empty) {
                 const appDoc = querySnapshot.docs[0];
                 await updateDoc(appDoc.ref, {
-                    marketplaceName: metadata.name || `Land Property #${tokenId}`,
+                    marketplaceName: metadata.name || `Land Property #${tokenId.slice(0, 8)}`,
                     marketplaceLocation: metadata.location || "Verified Location",
                     isListed: true
                 });
@@ -239,7 +232,7 @@ const CitizenPortal: React.FC = () => {
             const signer = await provider.getSigner();
             const contract = new Contract(LAND_REGISTRY_ADDRESS, LAND_REGISTRY_ABI, signer);
 
-            const tx = await contract.buyLand(land.tokenId, { value: parseEther(land.price) });
+            const tx = await contract.buyLand(BigInt(land.tokenId), { value: parseEther(land.price) });
             await tx.wait();
 
             alert("🎉 Congratulations! You now own this land.");
@@ -329,6 +322,18 @@ const CitizenPortal: React.FC = () => {
                                                 <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer" />
                                             </div>
                                         </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Documentation (Arweave)</label>
+                                            <div className="flex items-center justify-between font-mono text-sm bg-gray-50 p-2 rounded">
+                                                <span className="truncate flex-1">{app.arweaveHash}</span>
+                                                <div className="flex gap-2">
+                                                    <Copy onClick={() => copyToClipboard(app.arweaveHash)} className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer" />
+                                                    <a href={`https://arweave.net/${app.arweaveHash}`} target="_blank" rel="noreferrer">
+                                                        <ExternalLink className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer" />
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
                                         {!isCorrectWallet && (
                                             <div className="bg-red-50 p-3 rounded-xl flex items-start gap-2 border border-red-100">
                                                 <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
@@ -344,8 +349,8 @@ const CitizenPortal: React.FC = () => {
                                         onClick={() => mintNFT(app)}
                                         disabled={isMinting === app.id || !isCorrectWallet}
                                         className={`w-full btn-primary flex items-center justify-center gap-3 py-4 transition-all ${!isCorrectWallet
-                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                : 'bg-black hover:bg-gray-800 text-white shadow-lg shadow-gray-200'
+                                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                            : 'bg-black hover:bg-gray-800 text-white shadow-lg shadow-gray-200'
                                             }`}
                                     >
                                         {isMinting === app.id ? <Loader2 className="animate-spin text-white" /> : <PlusCircle className="w-5 h-5 flex-shrink-0" />}
@@ -385,14 +390,13 @@ const CitizenPortal: React.FC = () => {
                             const isOwner = userAddress?.toLowerCase() === land.owner;
                             return (
                                 <div key={land.tokenId} className="card group overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-                                    {/* Card Header (Image/Icon Placeholder) */}
                                     <div className="aspect-square bg-gradient-to-br from-indigo-500 to-purple-600 -mx-6 -mt-6 mb-6 flex items-center justify-center relative">
                                         <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md rounded-full p-2 text-white">
                                             <Hash className="w-5 h-5" />
                                         </div>
-                                        <span className="text-6xl font-black text-white/20">#{land.tokenId}</span>
+                                        <span className="text-5xl font-black text-white/20">#{land.tokenId.slice(0, 6)}...</span>
                                         <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-xl shadow-lg">
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase">H3 Geohash</p>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Geohash ID</p>
                                             <p className="font-mono text-sm font-black text-gray-800 truncate">{land.h3Hash}</p>
                                         </div>
                                     </div>
@@ -464,7 +468,7 @@ const CitizenPortal: React.FC = () => {
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Price (ETH)</label>
+                                                                    <label className="text-[10px) font-bold text-gray-400 uppercase block mb-1">Price (ETH)</label>
                                                                     <input
                                                                         type="number"
                                                                         placeholder="0.00"
