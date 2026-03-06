@@ -286,8 +286,8 @@ const SurveyorPortal: React.FC = () => {
                                     onClick={triggerFileUpload}
                                     disabled={isUploading}
                                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold transition-all ${uploadedFile
-                                            ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-100'
-                                            : 'btn-secondary'
+                                        ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-100'
+                                        : 'btn-secondary'
                                         }`}
                                 >
                                     {isUploading ? <Loader2 className="animate-spin" /> : uploadedFile ? <RefreshCw className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
@@ -307,8 +307,9 @@ const SurveyorPortal: React.FC = () => {
                         <div className="space-y-4">
                             <div onClick={() => h3Hash && copyToClipboard(h3Hash)} className="cursor-pointer group">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block group-hover:text-primary-500 transition-colors">H3 Geohash (Res 9)</label>
-                                <div className="hash-display min-h-[44px] flex items-center justify-between">
-                                    <span>{h3Hash || "---"}</span>
+                                <div className="hash-display min-h-[44px] flex items-center justify-between gap-3 overflow-hidden">
+                                    <span className="truncate flex-1 font-mono text-sm">{h3Hash || "---"}</span>
+                                    {h3Hash && <Copy onClick={() => copyToClipboard(h3Hash)} className="w-4 h-4 text-gray-300 hover:text-primary-500 cursor-pointer shrink-0" />}
                                 </div>
                             </div>
                             <div className="cursor-pointer group">

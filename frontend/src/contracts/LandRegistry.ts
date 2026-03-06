@@ -1,4 +1,4 @@
-export const LAND_REGISTRY_ADDRESS = "0x49B70ff62359959b4Db0B37AABf8883F8969A7ca";
+export const LAND_REGISTRY_ADDRESS = "0xa340dDEFEe4f111aEd0D4c733Db46e6844670421";
 
 export const LAND_REGISTRY_ABI = [
     "function mint(bytes32 h3Hash, string arweaveHash, bytes govSign) external returns (uint256)",

@@ -206,9 +206,9 @@ const GovernmentPortal: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Land Geohash (H3)</label>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-mono text-sm text-gray-700 bg-gray-50 px-2 py-1 rounded flex-1 truncate">{app.h3Hash}</span>
-                                                <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 cursor-pointer hover:text-red-500 transition-colors" />
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <span className="font-mono text-sm text-gray-700 bg-gray-50 px-2 py-1 rounded flex-1 truncate" title={app.h3Hash}>{app.h3Hash}</span>
+                                                <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 cursor-pointer hover:text-red-500 transition-colors shrink-0" />
                                             </div>
                                         </div>
                                     </div>

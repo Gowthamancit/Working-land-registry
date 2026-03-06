@@ -317,9 +317,9 @@ const CitizenPortal: React.FC = () => {
                                     <div className="space-y-4 mb-6">
                                         <div>
                                             <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Geohash (H3)</label>
-                                            <div className="flex items-center justify-between font-mono text-sm bg-gray-50 p-2 rounded">
-                                                <span>{app.h3Hash}</span>
-                                                <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer" />
+                                            <div className="flex items-center gap-2 font-mono text-sm bg-gray-50 p-2 rounded overflow-hidden">
+                                                <span className="truncate flex-1">{app.h3Hash}</span>
+                                                <Copy onClick={() => copyToClipboard(app.h3Hash)} className="w-4 h-4 text-gray-300 hover:text-green-600 cursor-pointer shrink-0" />
                                             </div>
                                         </div>
                                         <div>
@@ -395,9 +395,9 @@ const CitizenPortal: React.FC = () => {
                                             <Hash className="w-5 h-5" />
                                         </div>
                                         <span className="text-5xl font-black text-white/20">#{land.tokenId.slice(0, 6)}...</span>
-                                        <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-xl shadow-lg">
+                                        <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-xl shadow-lg border border-white/50">
                                             <p className="text-[10px] font-bold text-gray-400 uppercase">Geohash ID</p>
-                                            <p className="font-mono text-sm font-black text-gray-800 truncate">{land.h3Hash}</p>
+                                            <p className="font-mono text-[11px] font-black text-gray-800 truncate" title={land.h3Hash}>{land.h3Hash}</p>
                                         </div>
                                     </div>
 
